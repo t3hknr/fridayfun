@@ -30,7 +30,7 @@ public class Zeus extends CaptureTheFlagApi {
 		private static final long serialVersionUID = 1L;
 		{
 			add(5);
-			//add(4);
+			add(4);
 			add(2);
 			add(3);
 		}
@@ -227,7 +227,7 @@ public class Zeus extends CaptureTheFlagApi {
 				checkPoints = new ArrayList<Point2D>();
 				if (getY() >= getBattleFieldHeight() / 2) {
 					if (areInOpositeHalfs(getLocation(), getEnemyFlag())) {
-						//checkPoints.addAll(getTopEntranceCheckpoints());
+						checkPoints.addAll(getTopEntranceCheckpoints());
 					}
 
 					if (isEnemyFlagInBase()) {
