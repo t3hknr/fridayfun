@@ -89,7 +89,23 @@ public class Zeus extends CaptureTheFlagApi {
 	 */
 	public void onScannedRobot(ScannedRobotEvent e) {
 		if (!this.isTeammate(e.getName())) {
-			fire(1);
+			
+		    //Turn to meet the scanned robot
+			setTurnGunLeft(getHeading() - getGunHeading() + e.getBearing());
+		 
+			// DEFENCE max = 5, OFFENCE max = 2.5
+			double maxPower = DEFENSE.contains(getBotNumber(getName())) ? 5 : 2.5;
+			
+		    // calculate fire power based on distance; DAMAGE = 4 * firePower.
+		    double firePower = Math.min(500 / e.getDistance(), maxPower);
+		               
+		    // if the gun is cool and we're pointed in the right direction and velocity of robot is less than 4.5 (max is 8), shoot!
+			if (getGunHeat() == 0 && Math.abs(getGunTurnRemaining()) < 5 && e.getVelocity() < 4.5) {
+				setFire(firePower);
+			}
+		 
+		     //Check to see where it's moved
+		     //setTurnRadarLeft(360);
 		}
 	}
 
