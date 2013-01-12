@@ -168,11 +168,13 @@ public class Zeus extends CaptureTheFlagApi {
     @Override
     public void onRobotDeath(RobotDeathEvent event) {
         if (isTeammate(event.getName())) {
+        	UpdateBattlefieldState(getBattlefieldState());
             int deadRobotNumber = getBotNumber(event.getName());
             System.out.println("Robot no " + deadRobotNumber + " died");
             robotsStatus[deadRobotNumber - 1] = false;
             if (deadRobotNumber == takingFlagBot) {
                 System.out.println("Flag dropped down by " + deadRobotNumber);
+                flagOwned = false;
                 for (int i = 0; i < robotsStatus.length; i++) {
                     if (robotsStatus[i] && OFFENCE.contains(i + 1)) {
                         takingFlagBot = i + 1;
@@ -183,6 +185,11 @@ public class Zeus extends CaptureTheFlagApi {
             }
             stop();
             findWay();
+        }
+        
+        out.println("Enemy flag " + getEnemyFlag() + " " + isEnemyFlagInBase());
+        for(Point2D p : checkPoints){
+        	out.println(p);
         }
     }
 
@@ -212,7 +219,8 @@ public class Zeus extends CaptureTheFlagApi {
             IsCourierChangeNeededMessage cMsg = (IsCourierChangeNeededMessage) event.getMessage();
             // Only check for change if the courier hasn't changed already
             if (cMsg.getMessageSender() == takingFlagBot) {
-                if (cMsg.getDistanceToEnemyFlag() > getDistanceToEnemyFlag(getX(), getY())) {
+                if (cMsg.getDistanceToEnemyFlag() > getDistanceToEnemyFlag(getX(), getY()) &&
+                		OFFENCE.contains(botNumber)) {
                     try {
                         broadcastMessage(new CourierHasChangedMessage(botNumber));
                         takingFlagBot = botNumber;
