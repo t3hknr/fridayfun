@@ -60,6 +60,7 @@ public class Zeus extends CaptureTheFlagApi {
         }
 
         findWay();
+        isEnemyFlagAtBase();
 
         if (botNumber == 4 || botNumber == 3) {
             waitForNumberOfTurns(20);
@@ -264,6 +265,7 @@ public class Zeus extends CaptureTheFlagApi {
     }
 
     private void findWay() {
+    	UpdateBattlefieldState(getBattlefieldState());
         checkPoints = new ArrayList<Point2D>();
         if (OFFENCE.contains(botNumber)) {
             if (!flagOwned) {
