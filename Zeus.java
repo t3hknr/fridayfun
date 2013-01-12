@@ -40,6 +40,9 @@ public class Zeus extends CaptureTheFlagApi {
             add(1);
         }
     };
+    List<Double> TanksDistanceFromFlag = new ArrayList<Double>() {
+        private static final long serialVersionUID = 1L;
+    };
 
     /**
      * Note that CaptureTheFlagApi inherits TeamRobot, so users can directly use
@@ -58,9 +61,8 @@ public class Zeus extends CaptureTheFlagApi {
         if (getX() < getBattleFieldWidth() / 2) {
             startLeft = true;
         }
-
+        setDistanceTable();
         findWay();
-        isEnemyFlagAtBase();
 
         if (botNumber == 4 || botNumber == 3) {
             waitForNumberOfTurns(20);
@@ -119,6 +121,7 @@ public class Zeus extends CaptureTheFlagApi {
     @Override
     public void onHitObject(HitObjectEvent event) {
         if (event.getType().equals("flag") && OFFENCE.contains(botNumber)) {
+            System.out.println("I just picked the flag");
             iOwnFlag = true;
             flagOwned = true;
             try {
@@ -145,11 +148,7 @@ public class Zeus extends CaptureTheFlagApi {
         stop();
 
         if (!iOwnFlag && botNumber == takingFlagBot) {
-            try {
-                broadcastMessage(new IsCourierChangeNeededMessage(takingFlagBot, getDistanceToEnemyFlag(getX(), getY())));
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
+            changeCourierIfCollision();
         }
 
         if ((0 <= getHeading() && getHeading() < 90)
@@ -169,28 +168,24 @@ public class Zeus extends CaptureTheFlagApi {
     @Override
     public void onRobotDeath(RobotDeathEvent event) {
         if (isTeammate(event.getName())) {
-        	UpdateBattlefieldState(getBattlefieldState());
+            UpdateBattlefieldState(getBattlefieldState());
             int deadRobotNumber = getBotNumber(event.getName());
             System.out.println("Robot no " + deadRobotNumber + " died");
-            robotsStatus[deadRobotNumber - 1] = false;
+            robotsStatus[deadRobotNumber - 1] = false;  
             if (deadRobotNumber == takingFlagBot) {
-                System.out.println("Flag dropped down by " + deadRobotNumber);
-                flagOwned = false;
-                for (int i = 0; i < robotsStatus.length; i++) {
-                    if (robotsStatus[i] && OFFENCE.contains(i + 1)) {
-                        takingFlagBot = i + 1;
-                        System.out.println("Courier has changed to " + takingFlagBot);
-                        break;
-                    }
+                // Reset distances if death appeared in between
+                setDistanceTable();
+                if (flagOwned) {
+                    flagOwned = false;
+                    System.out.println("Flag dropped down by " + takingFlagBot);
                 }
+                changeCourierIfDeath();
             }
-            stop();
-            findWay();
         }
-        
-        out.println("Enemy flag " + getEnemyFlag() + " " + isEnemyFlagInBase());
-        for(Point2D p : checkPoints){
-        	out.println(p);
+
+        //out.println("Enemy flag " + getEnemyFlag() + " " + isEnemyFlagInBase());
+        for (Point2D p : checkPoints) {
+            //out.println(p);
         }
     }
 
@@ -211,28 +206,75 @@ public class Zeus extends CaptureTheFlagApi {
             }
             stop();
             findWay();
-        } else if (event.getMessage() instanceof CourierHasChangedMessage) {
-            takingFlagBot = ((CourierHasChangedMessage) event.getMessage()).getNewCourier();
-            System.out.println("Courier has changed to " + takingFlagBot);
-            stop();
-            findWay();
-        } else if (event.getMessage() instanceof IsCourierChangeNeededMessage) {
-            IsCourierChangeNeededMessage cMsg = (IsCourierChangeNeededMessage) event.getMessage();
-            // Only check for change if the courier hasn't changed already
-            if (cMsg.getMessageSender() == takingFlagBot) {
-                if (cMsg.getDistanceToEnemyFlag() > getDistanceToEnemyFlag(getX(), getY()) &&
-                		OFFENCE.contains(botNumber)) {
-                    try {
-                        broadcastMessage(new CourierHasChangedMessage(botNumber));
-                        takingFlagBot = botNumber;
-                        stop();
-                        findWay();
-                    } catch (IOException ex) {
-                        ex.printStackTrace();
-                    }
+        } else if (event.getMessage() instanceof AskForDistanceMessage) {
+            TanksDistanceFromFlag.remove(botNumber - 1);
+            TanksDistanceFromFlag.add(botNumber - 1, getDistanceToEnemyFlag(getX(), getY()));
+            System.out.println("Received request for distance");
+            try {
+                broadcastMessage(new TankDistanceFromFlagMessage(botNumber, getDistanceToEnemyFlag(getX(), getY())));
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        } else if (event.getMessage() instanceof TankDistanceFromFlagMessage) {
+            TankDistanceFromFlagMessage message = (TankDistanceFromFlagMessage) event.getMessage();
+            System.out.println("Received distance from " + message.getTankNumber());
+            TanksDistanceFromFlag.remove(message.getTankNumber() - 1);
+            TanksDistanceFromFlag.add(message.getTankNumber() - 1, message.getTankDistance());
+            // Exit if not all distances are set
+            for (int i = 0; i < TanksDistanceFromFlag.size(); i++) {
+                if (TanksDistanceFromFlag.get(i) < 0 && robotsStatus[i]) {
+                    return;
                 }
             }
+            // If all are set, calculate - this should provide the same result for each tank
+            System.out.println("Distance table full!");
+            int closestTank = -1;
+            double closestDistance = Double.MAX_VALUE;
+            for (int i = 0; i < TanksDistanceFromFlag.size(); i++) {
+                if (TanksDistanceFromFlag.get(i) < closestDistance && robotsStatus[i] && OFFENCE.contains(i+1)) {
+                    closestDistance = TanksDistanceFromFlag.get(i);
+                    closestTank = i+1;
+                }
+            }
+            // Closest tank is found - reset the table and set LOCAL vars
+            System.out.println("Closest tank is : " + closestTank);
+            takingFlagBot = closestTank;
+            setDistanceTable();
+            stop();
+            findWay();
         }
+    }
+
+    private void changeCourierIfCollision() {
+        System.out.println("Collision detected!");
+        TanksDistanceFromFlag.remove(botNumber - 1);
+        TanksDistanceFromFlag.add(botNumber - 1, getDistanceToEnemyFlag(getX(), getY()));
+        try {
+            broadcastMessage(new AskForDistanceMessage());
+            broadcastMessage(new TankDistanceFromFlagMessage(botNumber, getDistanceToEnemyFlag(getX(), getY())));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+    
+    private void changeCourierIfDeath() {
+        System.out.println("Couried died!");
+        TanksDistanceFromFlag.remove(botNumber - 1);
+        TanksDistanceFromFlag.add(botNumber - 1, getDistanceToEnemyFlag(getX(), getY()));
+        try {
+            broadcastMessage(new TankDistanceFromFlagMessage(botNumber, getDistanceToEnemyFlag(getX(), getY())));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void setDistanceTable() {
+        TanksDistanceFromFlag = new ArrayList<Double>();
+        TanksDistanceFromFlag.add(-1.0);
+        TanksDistanceFromFlag.add(-1.0);
+        TanksDistanceFromFlag.add(-1.0);
+        TanksDistanceFromFlag.add(-1.0);
+        TanksDistanceFromFlag.add(-1.0);
     }
 
     private void nextMove(Point2D point) {
@@ -265,7 +307,6 @@ public class Zeus extends CaptureTheFlagApi {
     }
 
     private void findWay() {
-    	UpdateBattlefieldState(getBattlefieldState());
         checkPoints = new ArrayList<Point2D>();
         if (OFFENCE.contains(botNumber)) {
             if (!flagOwned) {
@@ -309,7 +350,9 @@ public class Zeus extends CaptureTheFlagApi {
                     if (botNumber == takingFlagBot) {
                         checkPoints.add(getEnemyFlag());
                     } else if (botNumber == takingMiddle) {
-                        checkPoints.remove(checkPoints.size() - 1);
+                        if (checkPoints.size() >= 1) {
+                            checkPoints.remove(checkPoints.size() - 1);
+                        }
                         checkPoints.add(getCenterCheckpoint());
                     }
                 }
@@ -538,36 +581,27 @@ class GotFlagMessage implements Serializable {
     }
 }
 
-class IsCourierChangeNeededMessage implements Serializable {
+class AskForDistanceMessage implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private double distanceToEnemyFlag;
-    private int messageSender;
-
-    public IsCourierChangeNeededMessage(int courierNumber, double distanceToEnemyFlag) {
-        this.distanceToEnemyFlag = distanceToEnemyFlag;
-        this.messageSender = courierNumber;
-    }
-
-    public double getDistanceToEnemyFlag() {
-        return distanceToEnemyFlag;
-    }
-
-    public int getMessageSender() {
-        return messageSender;
-    }
 }
 
-class CourierHasChangedMessage implements Serializable {
+class TankDistanceFromFlagMessage implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private int newCourier;
+    private int tankNumber;
+    private double tankDistance;
 
-    public CourierHasChangedMessage(int newCourier) {
-        this.newCourier = newCourier;
+    public TankDistanceFromFlagMessage(int tankNumber, double tankDistance) {
+        this.tankNumber = tankNumber;
+        this.tankDistance = tankDistance;
     }
 
-    public int getNewCourier() {
-        return newCourier;
+    public int getTankNumber() {
+        return tankNumber;
+    }
+
+    public double getTankDistance() {
+        return tankDistance;
     }
 }
