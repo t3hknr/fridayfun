@@ -21,7 +21,7 @@ public class Zeus extends CaptureTheFlagApi {
 	boolean iOwnFlag = false;
 	boolean startLeft = false;
 	boolean newCheckpoints = false;
-
+        
 	boolean robotsStatus[] = new boolean[] { true, true, true, true, true };
 
 	List<Point2D> checkPoints;
@@ -145,7 +145,15 @@ public class Zeus extends CaptureTheFlagApi {
 
 	private void somethingHit(double bearing) {
 		stop();
-
+                
+                if (! iOwnFlag && botNumber == takingFlagBot) {
+                    try {
+                        broadcastMessage(new IsCourierChangeNeededMessage(takingFlagBot, getDistanceToEnemyFlag(getX(), getY())));
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+                
 		if((0 <= getHeading() && getHeading() < 90)
 				|| (180 <= getHeading() && getHeading() < 270))
 			setTurnRight(bearing - 60);
@@ -187,18 +195,25 @@ public class Zeus extends CaptureTheFlagApi {
 	public void onMessageReceived(MessageEvent event) {
 		if (event.getMessage() instanceof GotFlagMessage) {
 			flagOwned = ((GotFlagMessage) event.getMessage()).getGotFlag();
-
+                        
 			stop();
 			findWay();
+		}
+                
+                if (event.getMessage() instanceof CourierHasChangedMessage) {
+                        takingFlagBot = ((CourierHasChangedMessage)event.getMessage()).getNewCourier();
+                        stop();
+                        findWay();
 		}
 
 		if (event.getMessage() instanceof DiedMessage) {
 			DiedMessage dMsg = (DiedMessage) event.getMessage();
 			robotsStatus[dMsg.getMyNumber() - 1] = false;
 			if (dMsg.getMyNumber() == takingFlagBot) {
-				for (int i = 1; i < robotsStatus.length; i++) {
+				for (int i = 0; i < robotsStatus.length; i++) {
 					if (robotsStatus[i]) {
 						takingFlagBot = i + 1;
+                                                break;
 					}
 				}
 			}
@@ -206,6 +221,23 @@ public class Zeus extends CaptureTheFlagApi {
 			stop();
 			findWay();
 		}
+                
+                if (event.getMessage() instanceof IsCourierChangeNeededMessage) {
+                        IsCourierChangeNeededMessage cMsg = (IsCourierChangeNeededMessage) event.getMessage();
+                        // Only check for change if the courier hasn't changed already
+                        if (cMsg.getMessageSender() == takingFlagBot) {
+                                if (cMsg.getDistanceToEnemyFlag() > getDistanceToEnemyFlag(getX(), getY())) {
+                                        try {
+                                                broadcastMessage(new CourierHasChangedMessage(botNumber));
+                                                takingFlagBot = botNumber;
+                                                stop();
+                                                findWay();
+                                        } catch (IOException ex) {
+                                                ex.printStackTrace();
+                                        }
+                                }
+                        }
+                }
 	}
 
 	private void nextMove(Point2D point) {
@@ -295,7 +327,7 @@ public class Zeus extends CaptureTheFlagApi {
 						checkPoints.addAll(points);
 					}
 
-					if (botNumber == takingFlagBot || iOwnFlag) {
+					if (iOwnFlag) {
 						checkPoints.add(getTopOwnBaseEntranceCheckpoint());
 						checkPoints.add(getOwnFlag());
 					} else {
@@ -312,7 +344,7 @@ public class Zeus extends CaptureTheFlagApi {
 						Collections.reverse(points);
 						checkPoints.addAll(points);
 					}
-					if (botNumber == takingFlagBot || iOwnFlag) {
+					if (iOwnFlag) {
 						checkPoints.add(getBottomOwnBaseEntranceCheckpoint());
 						checkPoints.add(getOwnFlag());
 					} else {
@@ -409,7 +441,7 @@ public class Zeus extends CaptureTheFlagApi {
 	}
 
 	private List<Point2D> getTopEntranceCheckpoints() {
-		List<Point2D> topCheckpoints = new ArrayList<>();
+		List<Point2D> topCheckpoints = new ArrayList<Point2D>();
 		topCheckpoints.add(new Point2D.Double(getBattleFieldWidth() / 2 - 50,
 				getBattleFieldHeight() - 50));
 		topCheckpoints.add(new Point2D.Double(getBattleFieldWidth() / 2 + 50,
@@ -420,7 +452,7 @@ public class Zeus extends CaptureTheFlagApi {
 	}
 
 	private List<Point2D> getBottomEntranceCheckpoints() {
-		List<Point2D> bottomCheckpoints = new ArrayList<>();
+		List<Point2D> bottomCheckpoints = new ArrayList<Point2D>();
 		bottomCheckpoints.add(new Point2D.Double(
 				getBattleFieldWidth() / 2 - 50, 50.0));
 		bottomCheckpoints.add(new Point2D.Double(
@@ -466,6 +498,11 @@ public class Zeus extends CaptureTheFlagApi {
 			return true;
 		return false;
 	}
+        
+        private double getDistanceToEnemyFlag(double x, double y) {
+                Point2D flag = getEnemyFlag();
+                return ( Math.sqrt(Math.pow(Math.abs(x-flag.getX()),2) + Math.pow(Math.abs(y-flag.getY()),2)));
+        }
 }
 
 class GotFlagMessage implements Serializable {
@@ -500,4 +537,36 @@ class DiedMessage implements Serializable {
 	public void setMyNumber(Integer myNumber) {
 		this.myNumber = myNumber;
 	}
+}
+
+class IsCourierChangeNeededMessage implements Serializable {
+	private static final long serialVersionUID = 1L;
+	private double distanceToEnemyFlag;
+        private int messageSender;
+
+	public IsCourierChangeNeededMessage(int courierNumber, double distanceToEnemyFlag) {
+		this.distanceToEnemyFlag = distanceToEnemyFlag;
+                this.messageSender = courierNumber;
+	}
+
+        public double getDistanceToEnemyFlag() {
+                return distanceToEnemyFlag;
+        }
+
+        public int getMessageSender() {
+                return messageSender;
+        }
+}
+
+class CourierHasChangedMessage implements Serializable {
+	private static final long serialVersionUID = 1L;
+        private int newCourier;
+        
+	public CourierHasChangedMessage(int newCourier) {
+                this.newCourier = newCourier;
+        }
+
+        public int getNewCourier() {
+                return newCourier;
+        }
 }
