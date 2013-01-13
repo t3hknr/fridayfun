@@ -218,11 +218,6 @@ public class Zeus extends CaptureTheFlagApi {
                 changeCourierIfDeath();
             }
         }
-
-        //out.println("Enemy flag " + getEnemyFlag() + " " + isEnemyFlagInBase());
-        for (Point2D p : checkPoints) {
-            //out.println(p);
-        }
     }
 
     public void onScannedObject(ScannedObjectEvent e) {
@@ -261,7 +256,7 @@ public class Zeus extends CaptureTheFlagApi {
             TanksDistanceFromFlag.remove(message.getTankNumber() - 1);
             TanksDistanceFromFlag.add(message.getTankNumber() - 1, message.getTankDistance());
             // Exit if not all distances are set
-            for (int i = 0; i < TanksDistanceFromFlag.size(); i++) {
+            for (int i = 1; i < TanksDistanceFromFlag.size(); i++) {
                 if (TanksDistanceFromFlag.get(i) < 0 && robotsStatus[i]) {
                     return;
                 }
@@ -270,7 +265,7 @@ public class Zeus extends CaptureTheFlagApi {
             System.out.println("Distance table full!");
             int closestTank = -1;
             double closestDistance = Double.MAX_VALUE;
-            for (int i = 0; i < TanksDistanceFromFlag.size(); i++) {
+            for (int i = 1; i < TanksDistanceFromFlag.size(); i++) {
                 if (TanksDistanceFromFlag.get(i) < closestDistance && robotsStatus[i] && OFFENCE.contains(i+1)) {
                     closestDistance = TanksDistanceFromFlag.get(i);
                     closestTank = i+1;
@@ -600,6 +595,7 @@ public class Zeus extends CaptureTheFlagApi {
     }
 
     private double getDistanceToEnemyFlag(double x, double y) {
+		UpdateBattlefieldState(getBattlefieldState());
         Point2D flag = getEnemyFlag();
         return (Math.sqrt(Math.pow(Math.abs(x - flag.getX()), 2) + Math.pow(Math.abs(y - flag.getY()), 2)));
     }
