@@ -303,6 +303,20 @@ public class Zeus extends CaptureTheFlagApi {
         } catch (IOException ex) {
             ex.printStackTrace();
         }
+        
+        boolean lastAttack = true;
+        for(int i = 1; i < robotsStatus.length ; i++){
+        	if(robotsStatus[i] == false && i+1 != botNumber)
+        	{
+        		lastAttack = false;
+        		break;
+        	}
+        }
+        if(lastAttack){
+        	takingFlagBot = botNumber;
+        	stop();
+        	findWay();
+        }
     }
 
     private void setDistanceTable() {
