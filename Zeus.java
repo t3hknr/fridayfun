@@ -70,7 +70,8 @@ public class Zeus extends CaptureTheFlagApi {
 
         while (true) {
             newCheckpoints = false;
-
+			
+			setMaxVelocity(8);
             stop();
             for (int i = 0; i < checkPoints.size(); i++) {
                 if (newCheckpoints) {
@@ -80,29 +81,36 @@ public class Zeus extends CaptureTheFlagApi {
             }
 
 			if (botNumber == 1) {
+				setMaxVelocity(3);
 				while (true) {
 					if (startLeft == true) {
-						setMaxVelocity(3);
 						setAhead(40000);
 						setTurnRight(180);
         	        	setTurnGunLeft(360);
         	       		turnGunLeft(360);
-
-						waitFor(new TurnCompleteCondition(this));
 					} else {
-						setMaxVelocity(3);
 						setAhead(40000);
 						setTurnLeft(180);
         	        	setTurnGunRight(360);
         	       		turnGunRight(360);
-
-						waitFor(new TurnCompleteCondition(this));
 					}
+					waitFor(new TurnCompleteCondition(this));
 				}
 			} else {
+				setMaxVelocity(6);
             	while (!flagOwned && !newCheckpoints || checkPoints.size() == 0) {
-        	        setTurnGunLeft(360);
-        	        turnGunLeft(360);
+					if (startLeft == true) {
+						setAhead(40000);
+						setTurnRight(180);
+        	        	setTurnGunLeft(360);
+        	       		turnGunLeft(360);
+					} else {
+						setAhead(40000);
+						setTurnLeft(180);
+        	        	setTurnGunRight(360);
+        	       		turnGunRight(360);
+					}
+					waitFor(new TurnCompleteCondition(this));
 				}
 			}
 
