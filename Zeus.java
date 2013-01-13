@@ -79,11 +79,35 @@ public class Zeus extends CaptureTheFlagApi {
                 nextMove(checkPoints.get(i));
             }
 
-            while (!flagOwned && !newCheckpoints || checkPoints.size() == 0) {
-                setTurnGunLeft(360);
-                turnGunLeft(360);
-            }
+			if (botNumber == 1) {
+				while (true) {
+					if (startLeft == true) {
+						setMaxVelocity(3);
+						setAhead(40000);
+						setTurnRight(180);
+        	        	setTurnGunLeft(360);
+        	       		turnGunLeft(360);
+
+						waitFor(new TurnCompleteCondition(this));
+					} else {
+						setMaxVelocity(3);
+						setAhead(40000);
+						setTurnLeft(180);
+        	        	setTurnGunRight(360);
+        	       		turnGunRight(360);
+
+						waitFor(new TurnCompleteCondition(this));
+					}
+				}
+			} else {
+            	while (!flagOwned && !newCheckpoints || checkPoints.size() == 0) {
+        	        setTurnGunLeft(360);
+        	        turnGunLeft(360);
+				}
+			}
+
         }
+
     }
 
     /**
@@ -145,21 +169,25 @@ public class Zeus extends CaptureTheFlagApi {
     }
 
     private void somethingHit(double bearing) {
-        stop();
+		botNumber = getBotNumber(getName());
+		
+		if (botNumber != 1) {
+     	   stop();
 
-        if (!iOwnFlag && botNumber == takingFlagBot) {
-            changeCourierIfCollision();
-        }
+        	if (!iOwnFlag && botNumber == takingFlagBot) {
+   	        	changeCourierIfCollision();
+        	}
 
-        if ((0 <= getHeading() && getHeading() < 90)
-                || (180 <= getHeading() && getHeading() < 270)) {
-            setTurnRight(bearing - 60);
-        } else if ((90 <= getHeading() && getHeading() < 180)
-                || (270 <= getHeading() && getHeading() < 360)) {
-            setTurnRight(bearing + 60);
-        }
-        back(100);
-        findWay();
+        	if ((0 <= getHeading() && getHeading() < 90)
+                	|| (180 <= getHeading() && getHeading() < 270)) {
+            	setTurnRight(bearing - 60);
+        	} else if ((90 <= getHeading() && getHeading() < 180)
+                	|| (270 <= getHeading() && getHeading() < 360)) {
+            	setTurnRight(bearing + 60);
+        	}
+        	back(100);
+        	findWay();
+		}
     }
 
     public void onHitWall(HitWallEvent e) {
@@ -197,6 +225,10 @@ public class Zeus extends CaptureTheFlagApi {
 
     @Override
     public void onMessageReceived(MessageEvent event) {
+		botNumber = getBotNumber(getName());
+		
+		if (botNumber != 1) {
+		
         if (event.getMessage() instanceof GotFlagMessage) {
             flagOwned = ((GotFlagMessage) event.getMessage()).getGotFlag();
             if (flagOwned) {
@@ -243,6 +275,8 @@ public class Zeus extends CaptureTheFlagApi {
             stop();
             findWay();
         }
+
+		}
     }
 
     private void changeCourierIfCollision() {
@@ -403,6 +437,8 @@ public class Zeus extends CaptureTheFlagApi {
         newCheckpoints = true;
     }
 
+//	private Point2D doDefenseCycle
+
     private Point2D getTopEnemyBaseCheckpoint() {
         if (startLeft) {
             return getTopLeftBaseCheckpoint();
@@ -465,6 +501,10 @@ public class Zeus extends CaptureTheFlagApi {
                 - getEnemyBase().getHeight(), getBattleFieldHeight() / 2
                 - getEnemyBase().getWidth() + 40);
     }
+
+	private Point2D getBaseCenter() {
+		return null;
+	}
 
     private Point2D getBottomRightBaseCheckpoint() {
         return new Point2D.Double(getEnemyBase().getHeight() + 60,
